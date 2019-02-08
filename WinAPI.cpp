@@ -1,5 +1,24 @@
 #include "WinAPI.h"
 
+std::vector<std::wstring> WinAPI::GetNameFolderFiles(std::wstring way) {
+
+	WIN32_FIND_DATA FileData;
+	HANDLE hFind;
+	std::vector<std::wstring> fileName;
+	way.append(L"//*");
+	hFind = FindFirstFile(way.data(), &FileData);
+	way.pop_back();
+	do
+	{
+		if (!(FileData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY))
+		{
+			fileName.push_back(way + FileData.cFileName);
+		}
+	} while (FindNextFile(hFind, &FileData));
+	FindClose(hFind);
+	return fileName;
+}
+
 void WinAPI::InitWindow() {
 
 	HINSTANCE hInstance = GetModuleHandle(NULL);

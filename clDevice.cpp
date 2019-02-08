@@ -386,50 +386,80 @@ bool clDevice::clPushKernel(cl_char * text, size_t lengthText)
 	return true;
 }
 
-cl_uint clDevice::mallocBufferMemory(const void** data, size_t* lengthData, size_t numberArrays, size_t lengthType) {
-	ptrMemoryDevice = (cl_mem*)realloc(ptrMemoryDevice, (numberMemoryDevice + numberArrays) * sizeof(cl_mem));
+cl_uint clDevice::mallocBufferMemory(const void* data, size_t lengthData) {
+	ptrMemoryDevice = (cl_mem*)realloc(ptrMemoryDevice, (numberMemoryDevice + 1) * sizeof(cl_mem));
 	cl_int errors;
-	for (size_t i = 0; i < numberArrays; i++) {
-		if ((void*)data[i])
-			ptrMemoryDevice[numberMemoryDevice + i] = clCreateBuffer(*context, CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR, lengthType * lengthData[i], (void*)data[i], &errors);
-		else
-			ptrMemoryDevice[numberMemoryDevice + i] = clCreateBuffer(*context, CL_MEM_READ_WRITE, lengthType * lengthData[i], NULL, &errors);
-		CL_CHECK(errors, "clCreateBuffer");
-		if (errors) {
-			ptrMemoryDevice = (cl_mem*)realloc(ptrMemoryDevice, (numberMemoryDevice) * sizeof(cl_mem));
-			return NULL;
-		}
+	if ((void*)data)
+		ptrMemoryDevice[numberMemoryDevice] = clCreateBuffer(*context, CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR, lengthData, (void*)data, &errors);
+	else
+		ptrMemoryDevice[numberMemoryDevice] = clCreateBuffer(*context, CL_MEM_READ_WRITE, lengthData, NULL, &errors);
+	CL_CHECK(errors, "clCreateBuffer");
+	if (errors) {
+		ptrMemoryDevice = (cl_mem*)realloc(ptrMemoryDevice, (numberMemoryDevice) * sizeof(cl_mem));
+		return NULL;
 	}
-	numberMemoryDevice += numberArrays;
-	return numberMemoryDevice - numberArrays;
+	numberMemoryDevice += 1;
+	return numberMemoryDevice - 1;
 }
 
-cl_uint clDevice::mallocImageMemory(const void** data, size_t* height, size_t* width, size_t* rowPitch, size_t numberArrays, size_t* typeImage, size_t* typeData) {
-	ptrImageDevice = (cl_mem*)realloc(ptrImageDevice, (numberImageDevice + numberArrays) * sizeof(cl_mem));
+cl_uint clDevice::mallocImageMemory(const void* data, size_t height, size_t width, size_t rowPitch, size_t typeImage, size_t typeData) {
+	ptrImageDevice = (cl_mem*)realloc(ptrImageDevice, (numberImageDevice + 1) * sizeof(cl_mem));
 	cl_int errors;
 	cl_image_format clImageFormat;
-	for (size_t i = 0; i < numberArrays; i++) {
-		if ((void*)data[i]) {
-			clImageFormat.image_channel_order = typeImage[i];
-			clImageFormat.image_channel_data_type = typeData[i];
-
-			ptrImageDevice[numberImageDevice + i] = clCreateImage2D(*context, CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR, &clImageFormat, width[i], height[i], rowPitch[i], (void*)data[i], &errors);
-		}
-		else {
-			clImageFormat.image_channel_order = typeImage[i];
-			clImageFormat.image_channel_data_type = typeData[i];
-			ptrImageDevice[numberImageDevice + i] = clCreateImage2D(*context, CL_MEM_READ_WRITE, &clImageFormat, width[i], height[i], NULL, NULL, &errors);
-		}
-		CL_CHECK(errors, "clCreateImage2D");
-		if (errors) {
-			ptrImageDevice = (cl_mem*)realloc(ptrImageDevice, (numberImageDevice) * sizeof(cl_mem));
-			return NULL;
-		}
+	if ((void*)data) {
+		clImageFormat.image_channel_order = typeImage;
+		clImageFormat.image_channel_data_type = typeData;
+		ptrImageDevice[numberImageDevice] = clCreateImage2D(*context, CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR, &clImageFormat, width, height, rowPitch, (void*)data, &errors);
 	}
-	numberImageDevice += numberArrays;
-	return numberImageDevice - numberArrays;
+	else {
+		clImageFormat.image_channel_order = typeImage;
+		clImageFormat.image_channel_data_type = typeData;
+		ptrImageDevice[numberImageDevice] = clCreateImage2D(*context, CL_MEM_READ_WRITE, &clImageFormat, width, height, NULL, NULL, &errors);
+	}
+	CL_CHECK(errors, "clCreateImage2D");
+	if (errors) {
+		ptrImageDevice = (cl_mem*)realloc(ptrImageDevice, (numberImageDevice) * sizeof(cl_mem));
+		return SIZE_MAX;
+	}
+	numberImageDevice += 1;
+	return numberImageDevice - 1;
 }
 
+bool clDevice::freeImageMemory(size_t indexMemory) {
+	if (indexMemory < numberImageDevice) {
+		CL_CHECK(clReleaseMemObject(ptrImageDevice[indexMemory]), "clReleaseMemObject");
+
+		if (indexMemory == numberImageDevice - 1) {
+			numberImageDevice--;
+			ptrImageDevice = (cl_mem*)realloc(ptrImageDevice, (numberImageDevice) * sizeof(cl_mem));
+		}
+		else {
+			numberImageDevice--;
+			cl_mem* tmp_objects = (cl_mem*)malloc((numberImageDevice - indexMemory) * sizeof(cl_mem));
+			memcpy(tmp_objects, ptrImageDevice + indexMemory + 1, (numberImageDevice - indexMemory) * sizeof(cl_mem));
+			memcpy(ptrImageDevice + indexMemory, tmp_objects, (numberImageDevice - indexMemory) * sizeof(cl_mem));
+			ptrImageDevice = (cl_mem*)realloc(ptrImageDevice, (numberImageDevice) * sizeof(cl_mem));
+			free(tmp_objects);
+		}
+		return true;
+	}
+	return false;
+}
+
+void clDevice::popBufferMemory() {
+	if (numberMemoryDevice > 0) {
+		numberMemoryDevice--;
+		CL_CHECK(clReleaseMemObject(ptrMemoryDevice[numberMemoryDevice]), "clReleaseMemObject");
+		ptrMemoryDevice = (cl_mem*)realloc(ptrMemoryDevice, (numberMemoryDevice) * sizeof(cl_mem));
+	}
+}
+void clDevice::popImageMemory() {
+	if (numberImageDevice > 0) {
+		numberImageDevice--;
+		CL_CHECK(clReleaseMemObject(ptrImageDevice[numberImageDevice]), "clReleaseMemObject");
+		ptrImageDevice = (cl_mem*)realloc(ptrImageDevice, (numberImageDevice) * sizeof(cl_mem));
+	}
+}
 void clDevice::callOpenclFunction(size_t index_kernel, cl_uint* indices_images, cl_char* indices_arguments, cl_int* size_indices_arguments, size_t number_images, size_t number_arguments) {
 	cl_uint* index_kernel_buffer = (cl_uint*)_alloca(number_images * sizeof(cl_uint));
 	cl_uint* index_kernel_arguments = (cl_uint*)_alloca(number_arguments * sizeof(cl_uint));
@@ -465,26 +495,20 @@ void clDevice::callOpenclFunction(size_t index_kernel, cl_uint* indices_images, 
 	this->setArguments(index_kernel, NULL, NULL, indices_images, number_images, index_kernel_buffer, indices_arguments, size_indices_arguments, number_arguments, index_kernel_arguments);
 	this->startCalculate(index_kernel, work_size);
 }
-
-bool clDevice::freeImageMemory(size_t index_image) {
-	if (index_image < numberImageDevice) {
-		CL_CHECK(clReleaseMemObject(ptrImageDevice[index_image]), "clReleaseMemObject");
-		if (index_image == numberImageDevice - 1) {
-			numberImageDevice--;
-			ptrImageDevice = (cl_mem*)realloc(ptrImageDevice, (numberImageDevice) * sizeof(cl_mem));
-		}
-		else {
-			cl_mem* tmp_objects = (cl_mem*)malloc((numberImageDevice - index_image) * sizeof(cl_mem));
-			memcpy(tmp_objects, ptrImageDevice + index_image + 1, (numberImageDevice - index_image) * sizeof(cl_mem));
-			memcpy(ptrImageDevice + index_image, tmp_objects, (numberImageDevice - index_image) * sizeof(cl_mem));
-			numberImageDevice--;
-			ptrImageDevice = (cl_mem*)realloc(ptrImageDevice, (numberImageDevice) * sizeof(cl_mem));
-			free(tmp_objects);
-		}
-		return true;
+void clDevice::callOpenclFunction(size_t index_kernel, cl_uint* indices_images, cl_char* indices_arguments, cl_int* size_indices_arguments, size_t number_images, size_t number_arguments, size_t x_work, size_t y_work, size_t z_work) {
+	cl_uint* index_kernel_buffer = (cl_uint*)_alloca(number_images * sizeof(cl_uint));
+	cl_uint* index_kernel_arguments = (cl_uint*)_alloca(number_arguments * sizeof(cl_uint));
+	size_t i = 0;
+	for (; i < number_images; i++)
+		index_kernel_buffer[i] = i;
+	for (size_t j = 0; i < number_images + number_arguments; i++) {
+		index_kernel_arguments[j++] = i;
 	}
-	return false;
+	size_t work_size[3] = { x_work, y_work, z_work };
+	this->setArguments(index_kernel, NULL, NULL, indices_images, number_images, index_kernel_buffer, indices_arguments, size_indices_arguments, number_arguments, index_kernel_arguments);
+	this->startCalculate(index_kernel, work_size);
 }
+
 cl_bool clDevice::setArguments(cl_uint index_kernel, cl_uint* indicesMemoryBuffer, cl_uint numberIndicesMemoryBuffer, cl_uint* indicesMemoryImage, cl_uint numberIndicesMemoryImage, cl_uint* index_kernel_buffer,
 	void* arguments, cl_int* typeArguments, cl_uint numberArguments, cl_uint* index_kernel_arguments) {
 	for (size_t i = 0; i < numberIndicesMemoryBuffer; i++) {
@@ -599,7 +623,6 @@ clDevice::~clDevice()
 		free(namesPrograms[i]);
 	if (*context)
 		clReleaseContext(*context);
-
 	if (kernels) free(kernels);
 	if (programDevice) free(programDevice);
 	if (namesPrograms) free(namesPrograms);

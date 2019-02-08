@@ -1,5 +1,6 @@
 #pragma once
 #include <Windows.h>
+#include <vector>
 LRESULT CALLBACK WndProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lparam);
 class WinAPI
 {
@@ -10,6 +11,7 @@ class WinAPI
 	void(**loopFunctions)(void* argument);
 	void** ptrArgument;
 public:
+	static std::vector<std::wstring> GetNameFolderFiles(std::wstring way);
 	void InitWindow();
 	void InitOpenGLContext();
 	void DispatchMessageWindow();

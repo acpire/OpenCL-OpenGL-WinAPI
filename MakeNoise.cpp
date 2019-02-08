@@ -137,16 +137,14 @@ MakeNoise::MakeNoise(clDevice* device, cl_uchar4* image, size_t width, size_t he
 {
 	const void* null_ptr = NULL;
 	cl_uchar type_arguments[] = { sizeof(cl_uint) };
-	size_t _type_image[] = { CL_RGBA };
-	size_t _type_data[] = { CL_FLOAT, CL_UNORM_INT8, CL_UNSIGNED_INT8 };
 	size_t length_row_pitch_data[] = { width * sizeof(cl_float4), width * sizeof(cl_uchar4), width_filter * sizeof(cl_float4), width_filter * sizeof(cl_uchar4) };
 	kernel = make_kernel_normal_distribution(width_filter, height_filter);
 	cl_int convolution_kernel_index = device->findKernel((const cl_char*)"convolution_image_float4_rgba", sizeof("convolution_image_float4_rgba"));
 	cl_int convolution_normal_coord__kernel_index = device->findKernel((const cl_char*)"convolution_f_image_rgba", sizeof("convolution_f_image_rgba"));
 	cl_int noise_kernel_index = device->findKernel((const cl_char*)"noise_image_rgba", sizeof("noise_image_rgba"));
-	cl_uint kernel_gpu = device->mallocImageMemory((const void**)&kernel, &height_filter, &width_filter, length_row_pitch_data + 2, 1, _type_image, _type_data);
-	cl_uint image_gpu = device->mallocImageMemory((const void**)&image, &height, &width, length_row_pitch_data + 1, 1, _type_image, _type_data + 1);
-	cl_uint result_image_gpu = device->mallocImageMemory(&null_ptr, &height, &width, length_row_pitch_data + 1, 1, _type_image, _type_data + 1);	
+	cl_uint kernel_gpu = device->mallocImageMemory((const void*)kernel, height_filter, width_filter, length_row_pitch_data[2], CL_RGBA, CL_FLOAT);
+	cl_uint image_gpu = device->mallocImageMemory((const void*)image, height, width, length_row_pitch_data[1], CL_RGBA, CL_UNORM_INT8);
+	cl_uint result_image_gpu = device->mallocImageMemory(null_ptr, height, width, length_row_pitch_data[1], CL_RGBA, CL_UNORM_INT8);
 
 	{
 		cl_uint indices[] = { image_gpu, kernel_gpu, result_image_gpu };
