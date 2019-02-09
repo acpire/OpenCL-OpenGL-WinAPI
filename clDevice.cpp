@@ -460,13 +460,32 @@ void clDevice::popImageMemory() {
 		ptrImageDevice = (cl_mem*)realloc(ptrImageDevice, (numberImageDevice) * sizeof(cl_mem));
 	}
 }
-void clDevice::callOpenclFunction(size_t index_kernel, cl_uint* indices_images, cl_char* indices_arguments, cl_int* size_indices_arguments, size_t number_images, size_t number_arguments) {
-	cl_uint* index_kernel_buffer = (cl_uint*)_alloca(number_images * sizeof(cl_uint));
+void clDevice::callOpenclFunction(size_t index_kernel, cl_uint* indices_images, cl_uint* indices_buffers, cl_char* indices_arguments, cl_int* size_indices_arguments, size_t number_images, size_t number_buffers, size_t number_arguments, size_t x_work, size_t y_work, size_t z_work) {
+	cl_uint* index_kernel_images = (cl_uint*)_alloca(number_images * sizeof(cl_uint));
+	cl_uint* index_kernel_buffer = (cl_uint*)_alloca(number_buffers * sizeof(cl_uint));
 	cl_uint* index_kernel_arguments = (cl_uint*)_alloca(number_arguments * sizeof(cl_uint));
 	size_t i = 0;
 	for (; i < number_images; i++)
-		index_kernel_buffer[i] = i;
-	for (size_t j = 0; i < number_images + number_arguments; i++) {
+		index_kernel_images[i] = i;
+	for (size_t j = 0; i < number_images + number_buffers; i++)
+		index_kernel_buffer[j] = i;
+	for (size_t j = 0; i < number_images + number_buffers + number_arguments; i++) {
+		index_kernel_arguments[j++] = i;
+	}
+	size_t work_size[3] = { x_work, y_work, z_work };
+	this->setArguments(index_kernel, indices_buffers, number_buffers, indices_images, number_images, index_kernel_images, index_kernel_buffer, indices_arguments, size_indices_arguments, number_arguments, index_kernel_arguments);
+	this->startCalculate(index_kernel, work_size);
+}
+void clDevice::callOpenclFunction(size_t index_kernel, cl_uint* indices_images, cl_uint* indices_buffers, cl_char* indices_arguments, cl_int* size_indices_arguments, size_t number_images, size_t number_buffers, size_t number_arguments) {
+	cl_uint* index_kernel_images = (cl_uint*)_alloca(number_images * sizeof(cl_uint));
+	cl_uint* index_kernel_buffer = (cl_uint*)_alloca(number_buffers * sizeof(cl_uint));
+	cl_uint* index_kernel_arguments = (cl_uint*)_alloca(number_arguments * sizeof(cl_uint));
+	size_t i = 0;
+	for (; i < number_images; i++)
+		index_kernel_images[i] = i;
+	for (size_t j = 0; i < number_images + number_buffers; i++)
+		index_kernel_buffer[j] = i;
+	for (size_t j = 0; i < number_images + number_buffers + number_arguments; i++) {
 		index_kernel_arguments[j++] = i;
 	}
 	size_t work_size[3];
@@ -492,24 +511,12 @@ void clDevice::callOpenclFunction(size_t index_kernel, cl_uint* indices_images, 
 		}
 	}
 	work_size[2] = 1;
-	this->setArguments(index_kernel, NULL, NULL, indices_images, number_images, index_kernel_buffer, indices_arguments, size_indices_arguments, number_arguments, index_kernel_arguments);
-	this->startCalculate(index_kernel, work_size);
-}
-void clDevice::callOpenclFunction(size_t index_kernel, cl_uint* indices_images, cl_char* indices_arguments, cl_int* size_indices_arguments, size_t number_images, size_t number_arguments, size_t x_work, size_t y_work, size_t z_work) {
-	cl_uint* index_kernel_buffer = (cl_uint*)_alloca(number_images * sizeof(cl_uint));
-	cl_uint* index_kernel_arguments = (cl_uint*)_alloca(number_arguments * sizeof(cl_uint));
-	size_t i = 0;
-	for (; i < number_images; i++)
-		index_kernel_buffer[i] = i;
-	for (size_t j = 0; i < number_images + number_arguments; i++) {
-		index_kernel_arguments[j++] = i;
-	}
-	size_t work_size[3] = { x_work, y_work, z_work };
-	this->setArguments(index_kernel, NULL, NULL, indices_images, number_images, index_kernel_buffer, indices_arguments, size_indices_arguments, number_arguments, index_kernel_arguments);
+	this->setArguments(index_kernel, indices_buffers, number_buffers, indices_images, number_images, index_kernel_images, index_kernel_buffer, indices_arguments, size_indices_arguments, number_arguments, index_kernel_arguments);
 	this->startCalculate(index_kernel, work_size);
 }
 
-cl_bool clDevice::setArguments(cl_uint index_kernel, cl_uint* indicesMemoryBuffer, cl_uint numberIndicesMemoryBuffer, cl_uint* indicesMemoryImage, cl_uint numberIndicesMemoryImage, cl_uint* index_kernel_buffer,
+cl_bool clDevice::setArguments(cl_uint index_kernel, cl_uint* indicesMemoryBuffer, cl_uint numberIndicesMemoryBuffer, cl_uint* indicesMemoryImage,
+	cl_uint numberIndicesMemoryImage, cl_uint* index_kernel_image, cl_uint* index_kernel_buffer,
 	void* arguments, cl_int* typeArguments, cl_uint numberArguments, cl_uint* index_kernel_arguments) {
 	for (size_t i = 0; i < numberIndicesMemoryBuffer; i++) {
 		if (indicesMemoryBuffer[i] < numberMemoryDevice)
@@ -521,7 +528,7 @@ cl_bool clDevice::setArguments(cl_uint index_kernel, cl_uint* indicesMemoryBuffe
 	}
 	for (size_t i = 0; i < numberIndicesMemoryImage; i++) {
 		if (indicesMemoryImage[i] < numberImageDevice)
-			CL_CHECK(clSetKernelArg(kernels[index_kernel], index_kernel_buffer[i], sizeof(ptrImageDevice[indicesMemoryImage[i]]), &ptrImageDevice[indicesMemoryImage[i]]), "clSetKernelArg");
+			CL_CHECK(clSetKernelArg(kernels[index_kernel], index_kernel_image[i], sizeof(ptrImageDevice[indicesMemoryImage[i]]), &ptrImageDevice[indicesMemoryImage[i]]), "clSetKernelArg");
 		else {
 			printf("Error index in clSetKernelArg");
 			return false;
@@ -574,7 +581,14 @@ cl_bool clDevice::copy2DImage(cl_uint image_src, cl_uint image_dst, size_t width
 	}
 	return true;
 }
-cl_bool clDevice::readBuffer(void** returnedData, cl_uint* indicesReadData, cl_uchar* typeArgubentsReturnedData, cl_ulong* lengthWrite, cl_uint numberIndicesReadData) {
+cl_bool clDevice::readBuffer(void* returnedData, cl_uint indicesReadData, cl_ulong lengthWrite) {
+
+		if (indicesReadData < numberMemoryDevice)
+			CL_CHECK(clEnqueueReadBuffer(*queue, ptrMemoryDevice[indicesReadData], CL_TRUE, 0, lengthWrite, returnedData, NULL, NULL, NULL), "clEnqueueReadBuffer");
+		
+	return true;
+}
+cl_bool clDevice::readBuffers(void** returnedData, cl_uint* indicesReadData, cl_uchar* typeArgubentsReturnedData, cl_ulong* lengthWrite, cl_uint numberIndicesReadData) {
 	cl_char** hostData = (cl_char**)returnedData;
 	size_t offset = 0;
 	for (size_t i = 0; i < numberIndicesReadData; i++) {

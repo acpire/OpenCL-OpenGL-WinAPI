@@ -4,13 +4,13 @@ void InverseFilter::getSpectrum(cl_uint real_image_gpu, cl_uint imagine_image_gp
 		cl_uint indices[] = { real_image_gpu, imagine_image_gpu, result_spectrum };
 		cl_uint indices_args[] = { width, height };
 		cl_int length_args[] = { sizeof(cl_uint), sizeof(cl_uint) };
-		_device->callOpenclFunction(magnitude_fourier, indices, (cl_char*)indices_args, length_args, 3, 2);
+		_device->callOpenclFunction(magnitude_fourier, indices, NULL, (cl_char*)indices_args, length_args, 3, 0, 2);
 	}
 	{
 		cl_uint indices[] = { result_spectrum,  result_spectrum, result_spectrum };
 		cl_uint indices_args[] = { width, height };
 		cl_int length_args[] = { sizeof(cl_uint), sizeof(cl_uint) };
-		_device->callOpenclFunction(mul_float4_kernel_index, indices, (cl_char*)indices_args, length_args, 3, 2);
+		_device->callOpenclFunction(mul_float4_kernel_index, indices,NULL, (cl_char*)indices_args, length_args, 3, 0, 2);
 	}
 }
 void InverseFilter::getMeanOrMax(cl_uint image_gpu, cl_uint result_image, cl_uint width, cl_uint height, bool mean) {
@@ -34,7 +34,7 @@ void InverseFilter::getMeanOrMax(cl_uint image_gpu, cl_uint result_image, cl_uin
 	cl_int length_args[] = { sizeof(cl_uint), sizeof(cl_uint), sizeof(cl_uint), sizeof(cl_uint), sizeof(cl_uint), -(int)_device->DeviceInfo.maxWorkGroupSize * 16 };
 	for (size_t j = width, i = height, firstCall = true; j > 1 && i > 1; j /= mod_x, i /= mod_y) {
 		cl_uint indices_args[] = { j, i, firstCall, width * height, mean, NULL };
-		_device->callOpenclFunction(mean_float4_kernel_index, indices + k, (cl_char*)indices_args, length_args, 2, 6);
+		_device->callOpenclFunction(mean_float4_kernel_index, indices + k, NULL, (cl_char*)indices_args, length_args, 2, 0, 6);
 		k ^= 2;
 		firstCall = false;
 	}
@@ -299,7 +299,7 @@ InverseFilter::InverseFilter(clDevice* device, cl_uchar4* image, size_t width, s
 		cl_uint indices[] = { image_gpu, real_image_gpu, imagine_image_gpu };
 		cl_uint indices_args[] = { width, height };
 		cl_int length_args[] = { sizeof(cl_uint), sizeof(cl_uint) };
-		device->callOpenclFunction(fourier_transform_float4_kernel_index, indices, (cl_char*)indices_args, length_args, 3, 2);
+		device->callOpenclFunction(fourier_transform_float4_kernel_index, indices, NULL, (cl_char*)indices_args, length_args, 3, 0, 2);
 	}
 	/*getMeanOrMax(real_image_gpu, max_re_image_gpu, width, height, false);
 	getMeanOrMax(imagine_image_gpu, max_im_image_gpu, width, height, false);
@@ -308,7 +308,7 @@ InverseFilter::InverseFilter(clDevice* device, cl_uchar4* image, size_t width, s
 		cl_uint indices[] = { kernel_gpu, real_kernel_gpu, imagine_kernel_gpu };
 		cl_uint indices_args[] = { width, height };
 		cl_int length_args[] = { sizeof(cl_uint), sizeof(cl_uint) };
-		device->callOpenclFunction(fourier_transform_float4_kernel_index, indices, (cl_char*)indices_args, length_args, 3, 2);
+		device->callOpenclFunction(fourier_transform_float4_kernel_index, indices, NULL, (cl_char*)indices_args, length_args, 3, 0, 2);
 	}
 	//getMeanOrMax(real_kernel_gpu, max_re_kernel_gpu, width, height, false);
 	//getMeanOrMax(imagine_kernel_gpu, max_im_kernel_gpu, width, height, false);
@@ -343,14 +343,14 @@ InverseFilter::InverseFilter(clDevice* device, cl_uchar4* image, size_t width, s
 		cl_uint indices[] = { real_image_gpu, real_kernel_gpu, real_image_gpu };
 		cl_uint indices_args[] = { width, height };
 		cl_int length_args[] = { sizeof(cl_uint), sizeof(cl_uint) };
-		device->callOpenclFunction(div_images_kernel_index, indices, (cl_char*)indices_args, length_args, 3, 2);
+		device->callOpenclFunction(div_images_kernel_index, indices, NULL, (cl_char*)indices_args, length_args, 3, 0, 2);
 
 	}
 	{
 		cl_uint indices[] = { imagine_image_gpu, imagine_kernel_gpu, imagine_image_gpu };
 		cl_uint indices_args[] = { width, height };
 		cl_int length_args[] = { sizeof(cl_uint), sizeof(cl_uint) };
-		device->callOpenclFunction(div_images_kernel_index, indices, (cl_char*)indices_args, length_args, 3, 2);
+		device->callOpenclFunction(div_images_kernel_index, indices, NULL, (cl_char*)indices_args, length_args, 3, 0, 2);
 	}
 	//getMeanOrMax(real_image_gpu, max_re_image_gpu, width, height, false);
 	//getMeanOrMax(imagine_image_gpu, max_im_image_gpu, width, height, false);
@@ -382,7 +382,7 @@ InverseFilter::InverseFilter(clDevice* device, cl_uchar4* image, size_t width, s
 		cl_uint indices[] = { real_image_gpu, imagine_image_gpu, result_image_gpu };
 		cl_uint indices_args[] = { width, height, NULL };
 		cl_int length_args[] = { sizeof(cl_uint), sizeof(cl_uint), -(int)_device->DeviceInfo.maxWorkGroupSize * 16 };
-		device->callOpenclFunction(inverse_fourier_transform_kernel_index, indices, (cl_char*)indices_args, length_args, 3, 2);
+		device->callOpenclFunction(inverse_fourier_transform_kernel_index, indices, NULL, (cl_char*)indices_args, length_args, 3, 0, 2);
 	}
 	//getMean(image_gpu, mean_kernel_gpu, width, height);
 	//{

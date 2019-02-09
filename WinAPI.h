@@ -11,6 +11,7 @@ class WinAPI
 	void(**loopFunctions)(void* argument);
 	void** ptrArgument;
 public:
+	
 	static std::vector<std::wstring> GetNameFolderFiles(std::wstring way);
 	void InitWindow();
 	void InitOpenGLContext();

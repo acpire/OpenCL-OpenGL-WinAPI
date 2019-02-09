@@ -1,7 +1,7 @@
 #include "WinAPI.h"
 
 std::vector<std::wstring> WinAPI::GetNameFolderFiles(std::wstring way) {
-
+	
 	WIN32_FIND_DATA FileData;
 	HANDLE hFind;
 	std::vector<std::wstring> fileName;
